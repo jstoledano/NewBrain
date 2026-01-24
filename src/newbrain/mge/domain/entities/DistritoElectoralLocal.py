@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class DistritoElectoralFederal:
+class DistritoElectoralLocal:
     """
     Definición del modelo de Distrito Electoral Local.
     """

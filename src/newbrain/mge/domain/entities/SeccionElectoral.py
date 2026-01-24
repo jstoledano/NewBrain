@@ -6,14 +6,14 @@ class SeccionElectoral:
     """
     Se define el dominio SeccionElectoral.
 
-    Este es el aggregate root y es la unidad mínima de
+    Este es el aggregate root y es la unidad mínima de información
     """
 
     id: int
     proceso_electoral_id: int
     entidad_id: int
-    distrito_id: int
-    distrito_local: int
+    distrito_electoral_federal_id: int
+    distrito_electoral_local_id: int
     municipio_id: int
     seccion: int  # Lenguaje ubicuo. La combinación entidad & sección es única
 

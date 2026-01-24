@@ -6,7 +6,8 @@ from datetime import date
 class ProcesoElectoral:
     """
     Representa un proceso electoral en donde funciona
-    un Marco Geográfico Electoral aprobado
+    un Marco Geográfico Electoral aprobado para ese
+    proceso electoral específico
     """
 
     id: str
