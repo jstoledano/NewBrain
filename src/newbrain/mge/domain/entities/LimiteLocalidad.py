@@ -8,7 +8,7 @@ class LimiteLocalidad:
 
     Es un área en la cartografía electoral que define una localidad.
     Pese a que el nombre y el área puede coincidir con otras definiciones
-    administrativas y cartográficas, como la de INEGI, su uso se limina a la ubicación
+    administrativas y cartográficas, como la de INEGI, su uso se limita a la ubicación
     geolectoral ciudadana.
     """
 

@@ -17,6 +17,7 @@ class ProcesoElectoral:
     fecha_fin: date
 
     def contiene_fecha(self, fecha: date) -> bool:
+        """Verifica si la fecha dada está dentro del rango del proceso electoral."""
         return self.fecha_inicio <= fecha <= self.fecha_fin
 
     def __str__(self) -> str:
