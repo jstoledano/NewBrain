@@ -14,4 +14,4 @@ class EntidadFederativa:
     nombre_abrev: str  # VER
 
     def __str__(self):
-        return f"{self.entidad} {self.nombre.upper()}"
+        return f"{self.entidad:02d} {self.nombre_corto.upper()}"

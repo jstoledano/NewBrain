@@ -24,4 +24,4 @@ class ProcesoElectoral:
             if self.fecha_inicio.year == self.fecha_fin.year
             else f"({self.fecha_inicio.year % 100:02d}-{self.fecha_fin.year % 100:02d})"
         )
-        return f"{self.nombre_corto} {periodo}"
+        return f"{self.nombre_corto.upper()} {periodo}"
