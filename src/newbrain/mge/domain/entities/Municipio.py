@@ -11,7 +11,7 @@ class Municipio:
     """
 
     id: int
-    proceso_electoral_id: int
+    proceso_electoral_id: str
     entidad_id: int
     municipio_id: int
     nombre_municipio: str  # La combinación entidad_id & nombre_municipio es única

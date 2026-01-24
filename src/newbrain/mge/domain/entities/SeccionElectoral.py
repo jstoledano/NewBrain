@@ -10,7 +10,7 @@ class SeccionElectoral:
     """
 
     id: int
-    proceso_electoral_id: int
+    proceso_electoral_id: str
     entidad_id: int
     distrito_electoral_federal_id: int
     distrito_electoral_local_id: int
