@@ -8,7 +8,7 @@ class EntidadFederativa:
     """
 
     entidad: int
-    nombre: str  # VERACRUZ DE IGNACIO DE LA LLAVE
+    nombre_entidad: str  # VERACRUZ DE IGNACIO DE LA LLAVE
     nombre_corto: str  # VERACRUZ
     nombre_clave: str  # VR
     nombre_abrev: str  # VER

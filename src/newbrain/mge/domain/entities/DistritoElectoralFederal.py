@@ -10,8 +10,8 @@ class DistritoElectoralFederal:
     id: int
     proceso_electoral_id: int
     entidad_id: int
-    distrito: int  # El par entidad_id&distrito es único
-    cabecera: str
+    distrito: int  # distrito: lenguaje ubicuo. El par entidad_id & distrito es único
+    nombre_cabecera: str  # Será una instancia de limite_localidad
 
     def __str__(self):
         return f"{self.entidad_id} {self.distrito:02d}"
