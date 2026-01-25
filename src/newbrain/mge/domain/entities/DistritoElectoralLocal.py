@@ -8,7 +8,7 @@ class DistritoElectoralLocal:
     """
 
     id: int
-    proceso_electoral_id: int
+    proceso_electoral_id: str
     entidad_id: int
     distrito_local: int  # El par entidad_id&distrito_local es único
     nombre_cabecera: str  # Es una instancia de limite_localidad

@@ -14,16 +14,17 @@ from ..entities.LocalidadPuntual import LocalidadPuntual
 from ..entities.Manzana import Manzana
 
 
-NivelGeoElectoral = Literal["entidad", "distrito", "municipio", "seccion"]
+NivelGeoElectoral = Literal[
+    "entidad",
+    "distrito_electoral_federal",
+    "distrito_electoral_local",
+    "municipio",
+    "seccion",
+]
 
 
 class InconsistenciaExpedienteMGE(Exception):
     """Excepción de dominio para inconsistencias dentro del expediente MGE."""
-
-
-def _to_str(value: object) -> str:
-    """Convierte a str preservando semántica para comparar ids heterogéneos."""
-    return str(value)
 
 
 @dataclass
@@ -37,7 +38,7 @@ class ExpedienteMGE:
 
     Invariantes:
     - Coherencia semántica: todos los objetos pertenecen al mismo proceso electoral y entidad.
-    - Nivel geoelectoral único: entidad, distrito, municipio o sección.
+    - Nivel geoelectoral único: entidad, distrito (federal/local), municipio o sección.
     - No mezcla de significados: el contenido corresponde solo al nivel declarado.
     """
 
@@ -105,16 +106,13 @@ class ExpedienteMGE:
     def _validar_coherencia(self) -> None:
         """
         Garantiza que todos los objetos pertenecen al mismo proceso y entidad.
-
-        Nota: Algunas entidades usan tipos distintos para `proceso_electoral_id` (str/int).
-        Se normaliza a str para la comparación sin perder semántica de igualdad.
         """
-        proc_id = _to_str(self.proceso.id)
+        proc_id = self.proceso.id
         ent_id = self.entidad.entidad
 
         def check(obj_name: str, obj_list: List[object], get_proc, get_ent) -> None:
             for o in obj_list:
-                if _to_str(get_proc(o)) != proc_id:
+                if get_proc(o) != proc_id:
                     raise InconsistenciaExpedienteMGE(
                         f"{obj_name} con proceso_electoral_id={get_proc(o)} no coincide con {proc_id}"
                     )
@@ -152,7 +150,7 @@ class ExpedienteMGE:
         )
         # LocalidadPuntual tiene nombres de campos ligeramente distintos (entidad_int, municipio_int)
         for lp in self.localidades_puntuales:
-            if _to_str(lp.proceso_electoral_id) != proc_id:
+            if lp.proceso_electoral_id != proc_id:
                 raise InconsistenciaExpedienteMGE(
                     f"LocalidadPuntual con proceso_electoral_id={lp.proceso_electoral_id} no coincide con {proc_id}"
                 )
@@ -165,76 +163,104 @@ class ExpedienteMGE:
 
     def _validar_nivel_geoelectoral(self) -> None:
         """
-        Garantiza que el contenido corresponde al nivel declarado (entidad, distrito, municipio, sección).
+        Garantiza que el contenido corresponde al nivel declarado.
 
-        Reglas pragmáticas:
-        - entidad: sin restricciones adicionales.
-        - distrito: exactamente un tipo de distrito (federal o local), al menos uno y solo uno.
-          Si hay secciones, deben referenciar ese distrito según su tipo.
-        - municipio: requiere al menos un municipio; secciones/loc/ manzanas deben pertenecer a ese municipio.
-          Se prohíbe mezclar con distritos para evitar cambios de nivel implícitos.
-        - sección: requiere exactamente una sección; opcionalmente puede incluir municipio/contexto
-          pero no distritos. Manzanas y localidades deben pertenecer a la sección/municipio asociado.
+                Reglas generales:
+                - Fuera del nivel sección y entidad, no puede coexistir información de distrito federal y local.
+                - El expediente puede incluir niveles inferiores solo como contexto, nunca cambia el punto de lectura.
+                - No valida geometría, solo coherencia relacional del punto de lectura.
+
+                Reglas por nivel:
+                - entidad: nivel máximo de agregación; puede contener catálogos de DF, DL, municipios y secciones simultáneamente
+                    sin interpretarlos como intersecciones, solo como panorama completo de la entidad.
+                - distrito_electoral_federal: requiere exactamente un DF; no admite DL; secciones (si hay) adscritas al DF;
+                    no admite municipios como foco.
+                - distrito_electoral_local: requiere exactamente un DL; no admite DF; secciones adscritas al DL; no admite
+                    municipios como foco.
+                - municipio: requiere exactamente un municipio; no admite DF/DL; secciones/localidades/manzanas deben pertenecer
+                    al municipio declarado; municipio no es punto de intersección DF/DL.
+                - seccion: requiere exactamente una sección; único nivel que permite coexistir DF y DL, ambos deben coincidir con
+                    la sección; municipio, si se incluye, debe coincidir; localidades/manzanas deben corresponder a la sección.
         """
+
+        # Regla estructural clave: fuera de sección y entidad no pueden coexistir DF y DL
+        if (
+            self.nivel not in {"seccion", "entidad"}
+            and self.distritos_federales
+            and self.distritos_locales
+        ):
+            raise InconsistenciaExpedienteMGE(
+                "No se permite coexistencia de distrito federal y local fuera del nivel sección"
+            )
 
         if self.nivel == "entidad":
             return
 
-        if self.nivel == "distrito":
-            if self.distritos_federales and self.distritos_locales:
+        if self.nivel == "distrito_electoral_federal":
+            if len(self.distritos_federales) != 1:
                 raise InconsistenciaExpedienteMGE(
-                    "Nivel distrito no admite mezclar distritos federales y locales"
+                    "Nivel distrito_electoral_federal requiere exactamente un DF"
                 )
-            if not self.distritos_federales and not self.distritos_locales:
+            if self.distritos_locales:
                 raise InconsistenciaExpedienteMGE(
-                    "Nivel distrito requiere al menos un distrito (federal o local)"
+                    "Nivel distrito_electoral_federal no admite distritos locales"
+                )
+            if self.municipios:
+                raise InconsistenciaExpedienteMGE(
+                    "Nivel distrito_electoral_federal no admite municipios como foco"
                 )
 
-            if len(self.distritos_federales) > 1 or len(self.distritos_locales) > 1:
-                raise InconsistenciaExpedienteMGE("Nivel distrito se limita a un único distrito")
-
-            distrito_tipo = "federal" if self.distritos_federales else "local"
-            distrito_id = (
-                self.distritos_federales[0].id
-                if distrito_tipo == "federal"
-                else self.distritos_locales[0].id
-            )
-
-            if distrito_tipo == "federal" and any(
-                sec.distrito_electoral_federal_id != distrito_id for sec in self.secciones
-            ):
+            distrito_id = self.distritos_federales[0].id
+            if any(sec.distrito_electoral_federal_id != distrito_id for sec in self.secciones):
                 raise InconsistenciaExpedienteMGE(
                     "Sección fuera del distrito federal declarado en el expediente"
                 )
-            if distrito_tipo == "local" and any(
-                sec.distrito_electoral_local_id != distrito_id for sec in self.secciones
-            ):
+            return
+
+        if self.nivel == "distrito_electoral_local":
+            if len(self.distritos_locales) != 1:
+                raise InconsistenciaExpedienteMGE(
+                    "Nivel distrito_electoral_local requiere exactamente un DL"
+                )
+            if self.distritos_federales:
+                raise InconsistenciaExpedienteMGE(
+                    "Nivel distrito_electoral_local no admite distritos federales"
+                )
+            if self.municipios:
+                raise InconsistenciaExpedienteMGE(
+                    "Nivel distrito_electoral_local no admite municipios como foco"
+                )
+
+            distrito_id = self.distritos_locales[0].id
+            if any(sec.distrito_electoral_local_id != distrito_id for sec in self.secciones):
                 raise InconsistenciaExpedienteMGE(
                     "Sección fuera del distrito local declarado en el expediente"
                 )
             return
 
         if self.nivel == "municipio":
-            if not self.municipios:
-                raise InconsistenciaExpedienteMGE("Nivel municipio requiere al menos un municipio")
+            if len(self.municipios) != 1:
+                raise InconsistenciaExpedienteMGE(
+                    "Nivel municipio requiere exactamente un municipio"
+                )
             if self.distritos_federales or self.distritos_locales:
                 raise InconsistenciaExpedienteMGE("Nivel municipio no debe incluir distritos")
 
-            muni_ids = {m.municipio_id for m in self.municipios}
+            municipio_id = self.municipios[0].municipio_id
 
-            if any(sec.municipio_id not in muni_ids for sec in self.secciones):
+            if any(sec.municipio_id != municipio_id for sec in self.secciones):
                 raise InconsistenciaExpedienteMGE(
                     "Sección fuera del municipio declarado en el expediente"
                 )
-            if any(ll.municipio_id not in muni_ids for ll in self.limites_localidad):
+            if any(ll.municipio_id != municipio_id for ll in self.limites_localidad):
                 raise InconsistenciaExpedienteMGE(
                     "Localidad fuera del municipio declarado en el expediente"
                 )
-            if any(lp.municipio_int not in muni_ids for lp in self.localidades_puntuales):
+            if any(lp.municipio_int != municipio_id for lp in self.localidades_puntuales):
                 raise InconsistenciaExpedienteMGE(
                     "Localidad puntual fuera del municipio declarado en el expediente"
                 )
-            if any(mz.municipio_id not in muni_ids for mz in self.manzanas):
+            if any(mz.municipio_id != municipio_id for mz in self.manzanas):
                 raise InconsistenciaExpedienteMGE(
                     "Manzana fuera del municipio declarado en el expediente"
                 )
@@ -245,9 +271,17 @@ class ExpedienteMGE:
                 raise InconsistenciaExpedienteMGE("Nivel sección requiere exactamente una sección")
             seccion = self.secciones[0]
 
-            if self.distritos_federales or self.distritos_locales:
+            if self.distritos_federales and any(
+                df.id != seccion.distrito_electoral_federal_id for df in self.distritos_federales
+            ):
                 raise InconsistenciaExpedienteMGE(
-                    "Nivel sección no incluye distritos para evitar mezcla de niveles"
+                    "Distrito federal no coincide con la sección declarada"
+                )
+            if self.distritos_locales and any(
+                dl.id != seccion.distrito_electoral_local_id for dl in self.distritos_locales
+            ):
+                raise InconsistenciaExpedienteMGE(
+                    "Distrito local no coincide con la sección declarada"
                 )
 
             if self.municipios:
