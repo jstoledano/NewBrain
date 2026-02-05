@@ -12,10 +12,10 @@ class Municipio:
 
     id: int
     proceso_electoral_id: str
-    entidad_id: int
-    municipio_id: int
-    nombre_municipio: str  # La combinación entidad_id & nombre_municipio es única
-    nombre_cabecera: str  # Parece un dato obvio, pero existe
+    entidad_id: int   # 29
+    municipio_id: int # 033 (El combo entidad_id & municipio_id es único)
+    nombre_municipio: str  # TLAXCALA
+    nombre_cabecera: str  # TLAXCALA DE XICOHTENCATL
 
     def __str__(self):
         return f"{self.municipio_id:03d} {self.nombre_municipio.upper()}"
